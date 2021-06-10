@@ -5,8 +5,12 @@ pragma solidity >=0.7.0 <0.8.0;
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/math/SafeMath.sol";
 
 contract Staking is Initializable, OwnableUpgradeable {
+    using SafeMath for uint256;
+    using SafeMath for uint16;
+
     uint256 public constant QUARTER_LENGTH = 91 days;
     uint256 public constant PRECISION = 10**18;
 
@@ -90,7 +94,7 @@ contract Staking is Initializable, OwnableUpgradeable {
 
         for (uint16 quarterIdx = currentQuarter; quarterIdx < stake.unlockQuarter; quarterIdx++) {
             uint256 oldShare = shares[staker][stakeIdx][quarterIdx];
-            uint256 newShare = stake.amount * (100 + ((stake.unlockQuarter - quarterIdx - 1) * 25));
+            uint256 newShare = stake.amount.mul(100 + stake.unlockQuarter.sub(quarterIdx).sub(1).mul(25));
 
             // This only happens when quarterIdx == currentQuarter.
             if (quarterIdx == stake.lockQuarter) {
@@ -115,17 +119,17 @@ contract Staking is Initializable, OwnableUpgradeable {
             quarterIdx < currentQuarter && quarterIdx < stakes[staker][stakeIdx].unlockQuarter;
             quarterIdx++
         ) {
-            amount +=
-                PRECISION *
-                shares[staker][stakeIdx][quarterIdx] *
-                quarters[quarterIdx].reward /
-                quarters[quarterIdx].shares;
+            amount = amount.add(
+                PRECISION.mul(
+                shares[staker][stakeIdx][quarterIdx]).mul(
+                quarters[quarterIdx].reward).div(
+                quarters[quarterIdx].shares));
             shares[staker][stakeIdx][quarterIdx] = 0;
         }
 
         stakes[staker][stakeIdx].firstUnclaimedQuarter = currentQuarter;
 
-        return amount / PRECISION;
+        return amount.div(PRECISION);
     }
 
     /**
